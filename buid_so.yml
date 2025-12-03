@@ -1,0 +1,52 @@
+# Hướng dẫn sử dụng:
+# 1. Tạo thư mục `.github/workflows` trong thư mục gốc dự án của bạn.
+# 2. Lưu nội dung bên dưới vào file `.github/workflows/build_so.yml`.
+# 3. Đẩy code lên GitHub (git push).
+# 4. Vào tab "Actions" trên GitHub để xem quá trình build và tải file .so về.
+
+name: Build .so Library with Docker
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+
+jobs:
+  build-library:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+
+    - name: Build Docker Image
+      # Build image từ Dockerfile của bạn, đặt tên là my-builder-image
+      run: docker build -t my-builder-image .
+
+    - name: Compile and Extract .so
+      run: |
+        # Tạo thư mục output
+        mkdir -p output
+        
+        # 1. Chạy container
+        # 2. Mount thư mục hiện tại vào /workspace
+        # 3. Chạy cmake và ninja để build
+        # 4. Copy file .so ra ngoài thư mục output của máy chủ GitHub
+        
+        docker run --rm -v ${{ github.workspace }}:/workspace -w /workspace my-builder-image /bin/bash -c "
+          cmake -S . -B build -G Ninja && \
+          cmake --build build && \
+          cp build/lib/*.so /workspace/output/ || cp build/*.so /workspace/output/
+        "
+
+    - name: Upload Artifact
+      # Bước này sẽ upload file .so lên GitHub để bạn tải về
+      uses: actions/upload-artifact@v4
+      with:
+        name: compiled-library
+        path: output/*.so
+        if-no-files-found: error
